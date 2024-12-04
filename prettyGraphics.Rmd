@@ -1,0 +1,144 @@
+---
+title: "prettygraphics"
+author: "C. Miller"
+date: '2024-12-04'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(scales)
+library(ggridges)
+
+# importing dataset 
+popularity_data <- read_delim("popularity_data.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+# putting go column name in lower case so it matches the others 
+colnames(popularity_data)[colnames(popularity_data) == "Go"] <- "go"
+
+View(popularity_data)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## histograms 
+
+### original histogram
+```{r}
+# original histogram 
+
+data_long <- popularity_data %>% pivot_longer(cols = everything(), names_to = "Package", values_to = "Value")
+
+ggplot(data_long, aes(x = Value, fill = Package)) + 
+  geom_histogram(bins = 30, alpha = 0.7, color = "black")  +
+  scale_x_log10(labels = scales::label_number(big.mark = ",")) +  # Log scale for x-axis 
+  labs(title = "Histograms for Each Package (Log Scale)", x = "# Stars (Log Scale)", y = "# Packages") +
+  facet_wrap(~ Package, scales = "free_y") + # Separate plot for each package
+  theme_minimal() +
+  theme(legend.position = "none") 
+
+
+```
+
+
+### pretty histogram
+```{r}
+# pretty histogram 
+
+colorPalette = c("#08306b","#08519c","#2171b5","#4292c6","#6baed6","#9ecae1","#c6dbef")
+
+prettyHist <- ggplot(data_long, aes(x = Value, fill = Package)) + 
+  geom_histogram(bins = 30, alpha = 0.7, color = "black")  +
+  scale_x_log10(labels = scales::label_number(big.mark = ",")) +  # Log scale for x-axis 
+  labs(title = "Histograms for Each Package (Log Scale)", x = "# Stars (Log Scale)", y = "# Packages") +
+  facet_wrap(~ Package, scales = "free_y") + # Separate plot for each package
+  theme_minimal() +
+  scale_fill_manual(values=c("#08306b","#08519c","#2171b5","#6baed6", "#9ecae1","#c6dbef")) + 
+  theme(legend.position = "none", panel.grid.minor = element_blank(), panel.grid.major = element_blank(),text = element_text(size = 17),axis.text.x = element_text(size = 15,angle = 15, vjust = 1, hjust=1)) 
+
+
+ggsave("visualizations/perEcosystemHistogram.pdf",prettyHist, width =8, height=4, units="in")
+
+```
+
+
+## density plots
+
+### original density plot
+
+```{r}
+# original density plot 
+ggplot(data_long, aes(x = Value, color = Package, fill = Package)) +
+  geom_density(alpha = 0.3) + # Add transparency for better visualization
+  labs(title = "Density Plots for Each Package", x = "Stars", y = "Density") + 
+  scale_x_log10(labels = label_number(big.mark = ","))  +
+  theme_minimal() + 
+  theme(legend.title = element_blank())
+
+```
+
+### pretty density plot 
+
+```{r}
+# alternative version with default color palette since the blues might be difficult to distinguish
+ggplot(data_long, aes(x = Value, color = Package, fill = Package)) +
+  geom_density(alpha = 0.1, lwd = .5) + # Add transparency for better visualization
+  labs(title = "Density Plots for Each Package", x = "# Stars (Log Scale)", y = "Package Density") + 
+  scale_x_log10(labels = label_number(big.mark = ","))  +
+  theme_minimal() + 
+  theme(legend.title = element_blank(), panel.grid.minor = element_blank(), panel.grid.major = element_blank(),text = element_text(size = 17), legend.direction = "horizontal", legend.position = c(0.6,0.9)) 
+  #scale_fill_manual(name='',values=c("#08306b","#08519c","#2171b5","#6baed6", "#9ecae1","#c6dbef")) +
+  #scale_color_manual(name='',values=c("#08306b","#08519c","#2171b5","#6baed6", "#9ecae1","#c6dbef"))
+
+
+
+density <- ggplot(data_long, aes(x = Value, color = Package, fill = Package)) +
+  geom_density(alpha = 0.1, lwd = .8) + # Add transparency for better visualization
+  labs(title = "Density Plots for Each Package", x = "# Stars (Log Scale)", y = "Package Density") + 
+  scale_x_log10(labels = label_number(big.mark = ","))  +
+  theme_minimal() + 
+  theme(legend.title = element_blank(), panel.grid.minor = element_blank(), panel.grid.major = element_blank(),text = element_text(size = 17), legend.direction = "horizontal", legend.position = c(0.6,0.9)) +
+  scale_fill_manual(name='',values=c("#08306b","#08519c","#2171b5","#4292c6","#6baed6","#9ecae1")) +
+  scale_color_manual(name='',values=c("#08306b","#08519c","#2171b5","#4292c6","#6baed6","#9ecae1"))
+
+# saving pretty density plot 
+ggsave("visualizations/allEcosystemsDensityPlot.pdf",density, width =7, height=5, units="in")
+
+```
+
+
+
+## experimental: ridgeline plot
+
+I thought a ridgeline plot could be a nice way to show the data in a manner that made it easy to compare the groups while still being a little space efficient
+
+```{r}
+# attempting ridgeline plot 
+
+ridgeline <- ggplot(data_long, aes(y=Package, x=Value,  fill=Package)) +
+    geom_density_ridges(alpha=0.5, stat="binline", bins=30) +
+    theme_ridges() +
+    scale_x_log10(labels = scales::label_number(big.mark = ",")) +  # Log scale for x-axis 
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 15), panel.grid.major = element_blank(), axis.title.x = element_text(hjust = 0.5),  axis.title.y = element_text(hjust = 0.5, size = 17), axis.text.x = element_text(margin=margin(t=-20), size = 15),text = element_text(size = 17), axis.text.y = element_text(size = 15)
+    ) +
+  scale_fill_manual(name='',values=c("#08306b","#08519c","#2171b5","#4292c6","#6baed6","#9ecae1")) +
+    xlab("# Stars (Log Scale)") +
+    ylab("Package Density")
+
+# saving ridgeline plot
+ggsave("visualizations/perEcosystemRidgelinePlot.pdf",ridgeline, width =7, height=5, units="in")
+
+
+
+```
+
+
+
